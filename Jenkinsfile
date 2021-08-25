@@ -4,6 +4,7 @@ pipeline {
 		GIT_CREDENTIALS = credentials ('git-credentials')
         DOCKER_CREDENTIALS = 'docker-credentials'
         image = "juancastaneda20/movie-analyst-api" + ":$BUILD_NUMBER"
+        testImage = ''
         dockerImage = ''
         dockerContainer=''
 	}
@@ -16,16 +17,20 @@ pipeline {
         }
         stage('build'){
             parallel{
-                stage('develop and qa'){
+                stage('build develop and qa'){
                     when { anyOf { branch 'develop'; branch 'qa' } }
                     steps {
-                        echo 'Building docker the image for develop and qa'
+                        script{
+                            testImage = docker.build image+"-test"
+                        }
                     } 
                 }
-                stage('master and staging'){
+                stage('build master and staging'){
                     when { anyOf { branch 'master'; branch 'staging' } }
                     steps {
-                        echo 'Building docker the image for master and staging'
+                        script{
+                            dockerImage = docker.build image
+                        }
                     }  
                 }
             }
@@ -33,7 +38,11 @@ pipeline {
         stage('test'){
             when { anyOf { branch 'develop'; branch 'qa' } }
             steps {
-                echo 'Runing the tests for develop and qa'
+                script{
+                    sh 'docker run --name test_container --entrypoint /bin/sh ' + image + '-test -c "ls"'
+                    sh 'docker rm test_container'
+                    sh 'docker rmi' + image + '-test'
+                } 
             }
         }
     }
