@@ -53,7 +53,7 @@ pipeline {
                     hosts.each(){
                         sshagent(credentials : ['ssh-key']) {
                             sh 'docker save ' + image + ' | ssh -C juancas20@' + it + ' docker load'
-                            sh 'ssh -v -o StrictHostKeyChecking=no -T juancas20@' + it + ' docker run -p 3000:3000 --name backend'
+                            sh 'ssh -v -o StrictHostKeyChecking=no -T juancas20@' + it + ' docker run -p 3000:3000 --name backend ' + image
                         }
                     }
                 }
