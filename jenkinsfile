@@ -36,9 +36,9 @@ pipeline {
             when { branch 'develop' }
             steps {
                 script{
-                    sh 'docker run --name test_container --entrypoint /bin/sh ' + image + '-test -c "npm test"'
+                    sh 'docker run --name test_container --entrypoint /bin/sh ' + image + ':develop -c "npm test"'
                     sh 'docker rm test_container'
-                    sh 'docker rmi' + image + '-' + env.BRANCH_NAME
+                    sh 'docker rmi' + image + ':develop'
                 } 
             }
         }
