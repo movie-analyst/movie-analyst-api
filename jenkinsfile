@@ -20,14 +20,14 @@ pipeline {
                     when { anyOf { branch 'master'; branch 'develop';} }
                     steps {
                         script{
-                            dockerImage = docker.build image + ':' + branch
+                            dockerImage = docker.build image + ':' + env.BRANCH_NAME
                         }
                     } 
                 }
                 stage('Retag images'){
                     when { anyOf {branch 'qa' ; branch 'staging';} }
                     steps {
-                        sh 'docker image tag ' + image  + ':develop '+  image +':' + branch
+                        sh 'docker image tag ' + image  + ':develop '+  image +':' + env.BRANCH_NAME
                     }  
                 }
             }
@@ -38,11 +38,12 @@ pipeline {
                 script{
                     sh 'docker run --name test_container --entrypoint /bin/sh ' + image + '-test -c "npm test"'
                     sh 'docker rm test_container'
-                    sh 'docker rmi' + image + '-' + branch
+                    sh 'docker rmi' + image + '-' + env.BRANCH_NAME
                 } 
             }
         }
-        stage('Push the image') { 
+        stage('Push the image') {
+            when{anyOf { branch 'master'; branch 'develop'; branch 'qa'; branch 'staging';} } 
             steps { 
                 echo 'Pushing image'
                 script { 
