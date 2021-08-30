@@ -38,7 +38,7 @@ pipeline {
                 script{
                     sh 'docker run --name test_container --entrypoint /bin/sh ' + image + ':develop -c "npm test"'
                     sh 'docker rm test_container'
-                    sh 'docker rmi' + image + ':develop'
+                    sh 'docker rmi ' + image + ':develop'
                 } 
             }
         }
