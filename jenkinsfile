@@ -38,7 +38,6 @@ pipeline {
                 script{
                     sh 'docker run --name test_container --entrypoint /bin/sh ' + image + ':develop -c "npm test"'
                     sh 'docker rm test_container'
-                    sh 'docker rmi ' + image + ':develop'
                 } 
             }
         }
@@ -49,7 +48,8 @@ pipeline {
                 script { 
                     docker.withRegistry( '', DOCKER_CREDENTIALS) { 
                         dockerImage.push() 
-                    } 
+                    }
+                    sh 'docker rmi ' + image + ':' + env.BRANCH_NAME 
                 } 
             }
         }
