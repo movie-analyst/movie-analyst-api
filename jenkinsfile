@@ -1,0 +1,57 @@
+pipeline {
+    agent any
+    environment {
+		GIT_CREDENTIALS = credentials ('git-credentials')
+        DOCKER_CREDENTIALS = 'docker-credentials'
+        image = "juancastaneda20/movie-analyst-api"
+        dockerImage = ''
+        dockerContainer=''
+	}
+    stages {
+        stage('Clone git repo') {
+            steps {
+                echo 'Cloning the git repository'
+                git credentialsId: 'git-credentials', url: 'git@gitlab.com:movie-analyst20/movie-analyst-api.git'
+            }
+        }
+        stage('build'){
+            parallel{
+                stage('Build develop and master image'){
+                    when { anyOf { branch 'master'; branch 'develop';} }
+                    steps {
+                        script{
+                            dockerImage = docker.build image + ':' + env.BRANCH_NAME
+                        }
+                    } 
+                }
+                stage('Retag images'){
+                    when { anyOf {branch 'qa' ; branch 'staging';} }
+                    steps {
+                        sh 'docker image tag ' + image  + ':develop '+  image +':' + env.BRANCH_NAME
+                    }  
+                }
+            }
+        }
+        stage('test'){
+            when { branch 'develop' }
+            steps {
+                script{
+                    sh 'docker run --name test_container --entrypoint /bin/sh ' + image + '-test -c "npm test"'
+                    sh 'docker rm test_container'
+                    sh 'docker rmi' + image + '-' + env.BRANCH_NAME
+                } 
+            }
+        }
+        stage('Push the image') {
+            when{anyOf { branch 'master'; branch 'develop'; branch 'qa'; branch 'staging';} } 
+            steps { 
+                echo 'Pushing image'
+                script { 
+                    docker.withRegistry( '', DOCKER_CREDENTIALS) { 
+                        dockerImage.push() 
+                    } 
+                } 
+            }
+        }
+    }
+}
