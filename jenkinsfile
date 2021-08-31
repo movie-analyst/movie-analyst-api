@@ -27,7 +27,11 @@ pipeline {
                 stage('Retag images'){
                     when { anyOf {branch 'qa' ; branch 'staging';} }
                     steps {
+                        sh 'docker pull ' + image + ':develop'
                         sh 'docker image tag ' + image  + ':develop '+  image +':' + env.BRANCH_NAME
+                        script{
+                            dockerImage = docker.image( image +':' + env.BRANCH_NAME)
+                        }
                     }  
                 }
             }
@@ -51,6 +55,13 @@ pipeline {
                     }
                     sh 'docker rmi ' + image + ':' + env.BRANCH_NAME 
                 } 
+            }
+        }
+        stage ('Start CD') {
+            steps {
+                build job: 'CD api pipeline', parameters: [
+                string(name: 'branch', value: env.BRANCH_NAME)
+                ]
             }
         }
     }
