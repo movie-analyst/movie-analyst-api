@@ -5,10 +5,10 @@ async function main () {
   try {
     const pool = mysql.createPool({
       connectionLimit: 10,
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'applicationuser',
-      password: process.env.DB_PASS || 'applicationuser',
-      database: process.env.DB_NAME || 'movie_db'
+      host: process.env.DB_HOST || 'mysqldbsetup1.mysql.database.azure.com',
+      user: process.env.DB_USER || 'juancas20@mysqldbsetup1',
+      password: process.env.DB_PASS || 'juan-1234',
+      database: process.env.DB_NAME || 'mysqldbsetup1'
     })
     pool.query = util.promisify(pool.query)
 

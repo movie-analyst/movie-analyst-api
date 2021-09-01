@@ -58,9 +58,10 @@ pipeline {
             }
         }
         stage ('Start CD') {
+            when { branch 'master' }
             steps {
                 build job: 'CD api pipeline', parameters: [
-                string(name: 'branch', value: env.BRANCH_NAME)
+                string(name: 'version', value: '1')
                 ]
             }
         }
