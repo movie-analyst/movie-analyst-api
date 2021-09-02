@@ -5,7 +5,6 @@ pipeline {
         DOCKER_CREDENTIALS = 'docker-credentials'
         image = "juancastaneda20/movie-analyst-api"
         dockerImage = ''
-        dockerContainer=''
 	}
     stages {
         stage('Clone git repo') {
@@ -16,11 +15,19 @@ pipeline {
         }
         stage('build'){
             parallel{
-                stage('Build develop and master image'){
-                    when { anyOf { branch 'master'; branch 'develop';} }
+                stage('Build developr image'){
+                    when { branch 'develop' }
                     steps {
                         script{
                             dockerImage = docker.build image + ':' + env.BRANCH_NAME
+                        }
+                    } 
+                }
+                stage('Build master image'){
+                    when { branch 'master'}
+                    steps {
+                        script{
+                            dockerImage = docker.build image + ':' + env.BRANCH_NAME + env.GIT_COMMIT
                         }
                     } 
                 }
@@ -52,16 +59,31 @@ pipeline {
                 script { 
                     docker.withRegistry( '', DOCKER_CREDENTIALS) { 
                         dockerImage.push() 
-                    }
-                    sh 'docker rmi ' + image + ':' + env.BRANCH_NAME 
+                    } 
                 } 
+            }
+        }
+        stage ('Remove the images'){
+            parallel{
+                stage('Remove master image'){
+                    when{ branch 'master'}
+                    steps{
+                         sh 'docker rmi ' + image + ':' + env.BRANCH_NAME + env.GIT_COMMIT
+                    }
+                }
+                stage('Remove images'){
+                    when{ anyOf { branch 'develop'; branch 'qa'; branch 'staging';} }
+                    steps{
+                         sh 'docker rmi ' + image + ':' + env.BRANCH_NAME 
+                    }
+                }
             }
         }
         stage ('Start CD') {
             when { branch 'master' }
             steps {
                 build job: 'CD api pipeline', parameters: [
-                string(name: 'version', value: '1')
+                string(name: 'branch', value: env.GIT_COMMIT)
                 ]
             }
         }
