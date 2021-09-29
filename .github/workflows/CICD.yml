@@ -1,36 +1,119 @@
-# This is a basic workflow to help you get started with Actions
+name:  movie-analyst-api-CICD
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
   push:
-    branches: [ master ]
+    branches:
+      - develop
+      - qa
+      - staging
+      - master
+    tags:
+      - v1.*
   pull_request:
-    branches: [ master ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches:
+      - develop
+      - master
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+env:
+  TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+  USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+  CONFIG: ${{ secrets.KUBECONFIG }}
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+      
+  test:
+    runs-on: ubuntu-latest    
+    strategy:
+      matrix:
+        node-version: [10.x, 12.x, 14.x, 15.x]
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
+      - name: Use Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v2
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: npm ci
+      - run: npm run build --if-present
+      - run: npm test
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+  build-and-push:
+    needs: test
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Set outputs
+        id: vars
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      -
+        name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ env.USERNAME }}
+          password: ${{ env.TOKEN }}
+      -
+        name: Build and push develop
+        if: github.ref == 'refs/heads/develop'
+        id: docker_build_develop
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: juancastaneda20/movie-analyst-api:develop
+      -
+        name: Build and push master
+        if: github.ref == 'refs/heads/master'
+        id: docker_build_master
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: juancastaneda20/movie-analyst-api:latest,juancastaneda20/movie-analyst-api:${{ steps.vars.outputs.sha_short }}
+      -
+        name: Retag images and push
+        if: github.ref == 'refs/heads/qa' || github.ref == 'refs/heads/staging'
+        uses: akhilerm/tag-push-action@v1.0.0
+        with:
+          src: juancastaneda20/movie-analyst-api:develop
+          dst: juancastaneda20/movie-analyst-api:qa
+    outputs:
+      image-tag: ${{ steps.vars.outputs.sha_short }}
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+  deploy:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: SetUp k8s cluster
+        uses: azure/k8s-set-context@v1
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ env.CONFIG }}
+        id: setcontext
+      -
+        name: Check out repo
+        uses: actions/checkout@v2
+        with:
+          repository: 'movie-analyst/movie-analyst-kubernetes'      
+      -
+        name: View directories
+        run: ls
+      -
+        uses: Azure/k8s-deploy@v1.4
+        with:
+          manifests: |
+            movie-analyst-api.yaml
+            api-configmap.yaml
+          images: 'juancastaneda20/movie-analyst-api:${{ needs.build-and-push.outputs.image-tag }}'
+          kubectl-version: 'latest'
+          
