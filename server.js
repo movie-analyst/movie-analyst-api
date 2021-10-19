@@ -3,13 +3,16 @@ const express = require('express')
 const app = express()
 const mysql = require('mysql')
 const util = require('util')
+const { Pool } = require('pg')
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'mysqldbsetup1.mysql.database.azure.com',
-  user: process.env.DB_USER || 'juancas20@mysqldbsetup1',
-  password: process.env.DB_PASS || 'juan-1234',
-  database: process.env.DB_NAME || 'mysqldbsetup1'
+const pool = new Pool({
+  user: process.env.DB_HOST || 'dbuser',
+  host: process.env.DB_USER || 'database.server.com',
+  database: process.env.DB_USER || 'mydb',
+  password: process.env.DB_USER || 'secretpassword',
+  port: 5432,
 })
+
 pool.query = util.promisify(pool.query)
 
 // Implement the movies API endpoint
