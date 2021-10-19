@@ -6,10 +6,10 @@ const util = require('util')
 const { Pool } = require('pg')
 
 const pool = new Pool({
-  user: process.env.DB_HOST || 'dbuser',
-  host: process.env.DB_USER || 'database.server.com',
-  database: process.env.DB_USER || 'mydb',
-  password: process.env.DB_USER || 'secretpassword',
+  user: process.env.DB_USER || 'dbuser',
+  host: process.env.DB_HOST || 'database.server.com',
+  database: process.env.DB_NAME || 'mydb',
+  password: process.env.DB_PASS || 'secretpassword',
   port: 5432,
 })
 
